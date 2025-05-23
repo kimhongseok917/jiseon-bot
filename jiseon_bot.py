@@ -86,7 +86,8 @@ def run_bot():
 
     # ─── 실제 Telegram Polling 실행 로그 ───
     print("🟢 [지선 봇] Telegram Polling 실행 중…")
-    asyncio.run(app_bot.run_polling())
+    # stop_signals=None 으로 시그널 훅킹 비활성화
+    asyncio.run(app_bot.run_polling(stop_signals=None)
 
 
 if __name__ == "__main__":
