@@ -76,10 +76,18 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def run_bot():
     import nest_asyncio
     nest_asyncio.apply()
+
+    # ─── Polling 스레드 시작 로그 ───
+    print("🟢 [지선 봇] Polling 스레드 시작")
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
+
     app_bot.add_handler(CommandHandler("start", start))
     app_bot.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle))
+
+    # ─── 실제 Telegram Polling 실행 로그 ───
+    print("🟢 [지선 봇] Telegram Polling 실행 중…")
     asyncio.run(app_bot.run_polling())
+
 
 if __name__ == "__main__":
     t = threading.Thread(target=run_bot, daemon=True)
