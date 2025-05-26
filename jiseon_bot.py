@@ -136,15 +136,15 @@ app = Flask(__name__)
 def health():
     return "OK", 200
 
+# 웹훅 엔드포인트 (동기 뷰)
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
-async def webhook():
-    try:
-        data = await request.get_json(force=True)
-        print("▶️ incoming webhook payload:", data)
-        update = Update.de_json(data, application.bot)
-        # 반드시 await 처리해야 로직이 실행됩니다
-        await application.process_update(update)
-        return "OK", 200
+def webhook():
+    # request.get_json()은 동기 호출입니다.
+    data = request.get_json(force=True)
+    update = Update.de_json(data, bot)
+    # application.process_update 도 동기 호출로
+    application.process_update(update)
+    return "OK", 200
     except Exception as e:
         import traceback
         print("❌ Webhook handler exception:", e)
