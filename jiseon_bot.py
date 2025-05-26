@@ -137,11 +137,20 @@ def health():
     return "OK", 200
 
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
-async def webhook():
-    data = await request.get_json(force=True)
-    update = Update.de_json(data, application.bot)
-    await application.process_update(update)
-    return "OK", 200
+def webhook():
+    try:
+        data = request.get_json(force=True)
+        print("▶️ incoming webhook payload:", data)
+        update = Update.de_json(data, application.bot)
+        application.process_update(update)
+        return "OK", 200
+    except Exception as e:
+        # 에러와 스택트레이스 출력
+        import traceback
+        print("❌ Webhook handler exception:", e)
+        traceback.print_exc()
+        # Telegram 측에 500을 리턴
+        return "Internal Server Error", 500
 
 # ── 진입점 ──
 if __name__ == "__main__":
