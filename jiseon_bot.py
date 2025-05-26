@@ -13,7 +13,7 @@ import os, json
 
 # ── 환경변수 로드 ──
 BOT_TOKEN  = os.environ["BOT_TOKEN"]
-SHEET_ID   = os.environ["1jbYjQlCwKAj2nzPuDp1BUm9uDK_5q16t5bA7ovoyrew"]
+SHEET_ID   = os.environ["SHEET_ID"]
 creds_dict = json.loads(os.environ["pjbrich-893b658b2a25.JSON"])
 
 # ── Google Sheet 연결 ──
