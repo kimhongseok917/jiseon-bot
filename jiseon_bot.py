@@ -139,12 +139,14 @@ def health():
 # 웹훅 엔드포인트 (동기 뷰)
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def webhook():
-    # request.get_json()은 동기 호출입니다.
-    data = request.get_json(force=True)
-    update = Update.de_json(data, bot)
-    # application.process_update 도 동기 호출로
-    application.process_update(update)
-    return "OK", 200
+    try:
+        # request.get_json()은 동기 호출입니다.
+        data = request.get_json(force=True)
+        update = Update.de_json(data, bot)
+        # Application.process_update()는 coroutine 이므로, 필요에 따라 await 하거나
+        # asyncio.run(...) 으로 감싸 주세요.
+        application.process_update(update)
+        return "OK", 200
     except Exception as e:
         import traceback
         print("❌ Webhook handler exception:", e)
