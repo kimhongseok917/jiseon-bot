@@ -14,7 +14,7 @@ import os, json
 # ── 환경변수 로드 ──
 BOT_TOKEN  = os.environ["BOT_TOKEN"]
 SHEET_ID   = os.environ["SHEET_ID"]
-creds_dict = json.loads(os.environ["pjbrich-893b658b2a25.JSON"])
+creds_dict = json.loads(os.environ["GOOGLE_JSON"])
 
 # ── Google Sheet 연결 ──
 scope   = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
