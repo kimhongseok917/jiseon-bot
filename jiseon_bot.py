@@ -3,26 +3,26 @@ import json
 from flask import Flask, request
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from telegram import Bot, Update
-from telegram.ext import Dispatcher, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler,
+    MessageHandler, ContextTypes, filters
+)
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 # ── 환경변수 로드 ──
 BOT_TOKEN   = os.environ["BOT_TOKEN"]
 SHEET_ID    = os.environ["SHEET_ID"]
-WEBHOOK_URL = os.environ["WEBHOOK_URL"]  # e.g. https://your-service.onrender.com
+WEBHOOK_URL = os.environ["WEBHOOK_URL"]  # e.g. https://jiseon-bot.onrender.com
 creds_dict  = json.loads(os.environ["GOOGLE_JSON"])
 
 # ── Google Sheet 연결 ──
-scope   = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
+scope   = ['https://spreadsheets.google.com/feeds',
+           'https://www.googleapis.com/auth/drive']
 creds   = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client  = gspread.authorize(creds)
 sheet   = client.open_by_key(SHEET_ID).sheet1
-
-# ── Telegram Bot & Dispatcher ──
-bot        = Bot(token=BOT_TOKEN)
-dispatcher = Dispatcher(bot, None, workers=0, use_context=True)
 
 # ── 체크리스트 질문 ──
 questions = [
@@ -68,8 +68,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         state['step'] += 1
         if state['step'] < len(questions):
             return await update.message.reply_text(questions[state['step']])
-
-        # 체크리스트 완료 → 다음 단계로
+        # 체크리스트 결과
         yes = sum(1 for a in state['answers'] if a == 'Y')
         res = "✅ 진입 가능" if yes >= 7 else "❌ 진입 보류"
         now = datetime.now(ZoneInfo("Asia/Seoul"))
@@ -109,7 +108,6 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if any(c not in valid for c in choices):
             return await update.message.reply_text("1~4번만 쉼표로 구분해 입력해주세요.")
         mistakes = ",".join(choices)
-        # 한 행으로 시트에 저장
         row = [
             state['date'], state['time'], state['stock']
         ] + state['answers'] + [
@@ -122,9 +120,14 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         del user_states[uid]
 
-# ── 핸들러 등록 ──
-dispatcher.add_handler(CommandHandler("start", start))
-dispatcher.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_response))
+# ── Application 생성 & 핸들러 등록 ──
+application = (
+    ApplicationBuilder()
+    .token(BOT_TOKEN)
+    .build()
+)
+application.add_handler(CommandHandler("start", start))
+application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_response))
 
 # ── Flask 앱 정의 ──
 app = Flask(__name__)
@@ -134,14 +137,18 @@ def health():
     return "OK", 200
 
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
-    dispatcher.process_update(update)
+async def webhook():
+    data = await request.get_json(force=True)
+    update = Update.de_json(data, application.bot)
+    await application.process_update(update)
     return "OK", 200
 
-# ── 앱 실행 ──
+# ── 진입점 ──
 if __name__ == "__main__":
-    # Telegram에 Webhook 등록
-    bot.set_webhook(f"{WEBHOOK_URL}/{BOT_TOKEN}")
-    # Flask 내장 서버 실행
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "10000")))
+    # Telegram 측에 Webhook 등록
+    import asyncio
+    asyncio.run(
+        application.bot.set_webhook(f"{WEBHOOK_URL}/{BOT_TOKEN}")
+    )
+    # Flask 내장 서버 구동
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT","10000")))
