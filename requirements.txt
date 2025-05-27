@@ -1,7 +1,6 @@
-python-telegram-bot
-Flask[async]
-gunicorn
-gspread
-oauth2client
-schedule
-nest_asyncio
+python-telegram-bot[webhooks]==22.1
+Flask[async]==3.1.1
+gspread==6.2.1
+oauth2client==4.1.3
+schedule==1.2.2
+nest_asyncio==1.6.0
