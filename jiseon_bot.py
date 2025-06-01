@@ -100,17 +100,17 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return await update.message.reply_text("올바른 숫자를 입력해주세요.")
         state["pnl"] = f"{pct:.2f}%"
         return await update.message.reply_text(
-            "실수 유형을 선택해주세요:\n"
+            "이번 매매에서의 실수 유형을 선택해주세요:\n"
             "1. 수익매도 안함\n2. 충족 안됐는데 진입\n"
-            "3. 손절선 미설정\n4. 물타기\n"
-            "예: 1,3"
+            "3. 손절선 미설정\n4. 물타기\n5. 없음\n"
+            "예: 1,3 또는 5"
         )
 
     # 3) 실수유형 입력
     if state["phase"] == "post" and "pnl" in state:
         choices = [c.strip() for c in text.split(",")]
-        if not all(c in ("1","2","3","4") for c in choices):
-            return await update.message.reply_text("1~4번만 쉼표로 구분해 입력해주세요.")
+        if not all(c in ("1","2","3","4","5") for c in choices):
+            return await update.message.reply_text("1~5번만 쉼표로 구분해 입력해주세요.")
         mistakes = ",".join(choices)
 
         row = [
