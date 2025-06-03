@@ -87,7 +87,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "time": now.strftime("%H:%M"),
         })
         return await update.message.reply_text(
-            f"{res} ({yes}/10)\n"
+          f"{res} ({yes}/{len(questions)})\n"
             "이번 매매의 👉 손익(퍼센트) 을 입력해주세요. 예: +5.3% 또는 -2%"
         )
 
