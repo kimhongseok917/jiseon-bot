@@ -77,7 +77,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # 체크리스트 완료
         yes = sum(1 for a in state["answers"] if a == "Y")
-        res = "✅ 진입 가능" if yes >= 7 else "❌ 진입 보류"
+        res = "✅ 진입 가능" if yes >= 8 else "❌ 진입 보류"
         now = datetime.now(ZoneInfo("Asia/Seoul"))
         state.update({
             "phase": "post",
