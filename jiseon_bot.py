@@ -82,7 +82,16 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # 체크리스트 완료
         yes = sum(1 for a in state["answers"] if a == "Y")
-        res = "✅ 진입 가능" if yes >= 12 else "❌ 진입 보류"
+        risky_indexes = [10, 12, 13, 15, 16]  # Q6, Q8, Q10, Q14, Q16 (0-based 인덱스)
+        risky_failed = any(state["answers"][i - 1] == "N" for i in risky_indexes)
+
+        if risky_failed:
+            res = "❌ 진입 금지 (고위험 조건 위반)"
+        elif yes >= 12:
+            res = "✅ 진입 가능"
+        else:
+            res = "❌ 진입 보류"
+
         now = datetime.now(ZoneInfo("Asia/Seoul"))
         state.update({
             "phase": "post",
