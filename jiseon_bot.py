@@ -29,7 +29,7 @@ creds  = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc     = gspread.authorize(creds)
 sheet  = gc.open_by_key(SHEET_ID).sheet1
 
-# ── 체크리스트 질문 (총 16개) ──
+# ── 체크리스트 질문 ──
 questions = [
     "1. 지금 충동적으로 진입하려는 것이 아니라고 확신할 수 있나요? (Y/N)",
     "2. '놓치면 안 된다'는 불안감 없이 매매하고 있나요? (Y/N)",
@@ -50,19 +50,24 @@ questions = [
 ]
 
 user_states = {}
-daily_entry_counts = defaultdict(dict)  # user_id -> {날짜: count}
+daily_entry_counts = {}  # user_id -> {"last_date": "YYYY-MM-DD", "count": 0}
 
 # ── /start 핸들러 ──
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     stock = "미입력" if not context.args else " ".join(context.args)
     today = date.today().isoformat()
-    count = daily_entry_counts[uid].get(today, 0)
 
-    if count >= 3:
+    user_data = daily_entry_counts.get(uid, {"last_date": "", "count": 0})
+
+    if user_data["last_date"] != today:
+        user_data = {"last_date": today, "count": 0}  # 날짜가 바뀌면 초기화
+
+    if user_data["count"] >= 3:
         return await update.message.reply_text("⚠️ 오늘은 매매 3회를 모두 사용했습니다.\n내일 다시 체크리스트를 이용해 주세요.")
 
-    daily_entry_counts[uid][today] = count + 1
+    user_data["count"] += 1
+    daily_entry_counts[uid] = user_data
 
     user_states[uid] = {
         "phase": "checklist",
@@ -80,7 +85,6 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not state:
         return await update.message.reply_text("👉 먼저 /start [종목명] 으로 시작해주세요.")
 
-    # 체크리스트 진행
     if state["phase"] == "checklist":
         t = text.upper()
         if t not in ("Y", "N"):
@@ -102,11 +106,9 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "time": now.strftime("%H:%M"),
         })
         return await update.message.reply_text(
-            f"{res} ({yes}/{len(questions)})\n"
-            "이번 매매의 👉 손익(퍼센트) 을 입력해주세요. 예: +5.3% 또는 -2%"
+            f"{res} ({yes}/{len(questions)})\n이번 매매의 👉 손익(퍼센트) 을 입력해주세요. 예: +5.3% 또는 -2%"
         )
 
-    # 손익 입력
     if state["phase"] == "post" and "pnl" not in state:
         if not text.endswith("%"):
             return await update.message.reply_text("퍼센트로 입력해주세요. 예: +5.3% 또는 -2%")
@@ -122,7 +124,6 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "예: 1,3 또는 6"
         )
 
-    # 실수유형 입력
     if state["phase"] == "post" and "pnl" in state:
         choices = [c.strip() for c in text.split(",")]
         if not all(c in ("1", "2", "3", "4", "5", "6") for c in choices):
@@ -151,7 +152,6 @@ application.add_handler(
     MessageHandler(filters.TEXT & (~filters.COMMAND), handle_response)
 )
 
-# ── 웹훅 실행 ──
 if __name__ == "__main__":
     application.run_webhook(
         listen="0.0.0.0",
