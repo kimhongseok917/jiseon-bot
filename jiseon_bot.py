@@ -1,7 +1,8 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, date
 from zoneinfo import ZoneInfo
+from collections import defaultdict
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -28,7 +29,7 @@ creds  = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc     = gspread.authorize(creds)
 sheet  = gc.open_by_key(SHEET_ID).sheet1
 
-# ── 체크리스트 질문 (감정 1~5번, 기술적 6~16번) ──
+# ── 체크리스트 질문 (총 16개) ──
 questions = [
     "1. 지금 충동적으로 진입하려는 것이 아니라고 확신할 수 있나요? (Y/N)",
     "2. '놓치면 안 된다'는 불안감 없이 매매하고 있나요? (Y/N)",
@@ -47,12 +48,22 @@ questions = [
     "15. 단기 전고점 대비 -4.5% 이상 하락하지 않았나요? (Y/N)",
     "16. 좋은 뉴스가 발생했나요? (Y/N)"
 ]
+
 user_states = {}
+daily_entry_counts = defaultdict(dict)  # user_id -> {날짜: count}
 
 # ── /start 핸들러 ──
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid   = update.effective_user.id
+    uid = update.effective_user.id
     stock = "미입력" if not context.args else " ".join(context.args)
+    today = date.today().isoformat()
+    count = daily_entry_counts[uid].get(today, 0)
+
+    if count >= 3:
+        return await update.message.reply_text("⚠️ 오늘은 매매 3회를 모두 사용했습니다.\n내일 다시 체크리스트를 이용해 주세요.")
+
+    daily_entry_counts[uid][today] = count + 1
+
     user_states[uid] = {
         "phase": "checklist",
         "step": 0,
@@ -63,13 +74,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── 응답 처리 핸들러 ──
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid   = update.effective_user.id
-    text  = update.message.text.strip()
+    uid = update.effective_user.id
+    text = update.message.text.strip()
     state = user_states.get(uid)
     if not state:
         return await update.message.reply_text("👉 먼저 /start [종목명] 으로 시작해주세요.")
 
-    # 1) 체크리스트 단계
+    # 체크리스트 진행
     if state["phase"] == "checklist":
         t = text.upper()
         if t not in ("Y", "N"):
@@ -80,18 +91,8 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if state["step"] < len(questions):
             return await update.message.reply_text(questions[state["step"]])
 
-        # 체크리스트 완료
         yes = sum(1 for a in state["answers"] if a == "Y")
-        risky_indexes = [11, 13, 14, 15, 16]  # Q6, Q8, Q10, Q14, Q16 (0-based 인덱스)
-        risky_failed = any(state["answers"][i - 1] == "N" for i in risky_indexes)
-
-        if risky_failed:
-            res = "❌ 진입 금지 (고위험 조건 위반)"
-        elif yes >= 12:
-            res = "✅ 진입 가능"
-        else:
-            res = "❌ 진입 보류"
-
+        res = "✅ 진입 가능" if yes >= 12 else "❌ 진입 보류"
         now = datetime.now(ZoneInfo("Asia/Seoul"))
         state.update({
             "phase": "post",
@@ -105,7 +106,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "이번 매매의 👉 손익(퍼센트) 을 입력해주세요. 예: +5.3% 또는 -2%"
         )
 
-    # 2) 손익 입력
+    # 손익 입력
     if state["phase"] == "post" and "pnl" not in state:
         if not text.endswith("%"):
             return await update.message.reply_text("퍼센트로 입력해주세요. 예: +5.3% 또는 -2%")
@@ -121,7 +122,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "예: 1,3 또는 6"
         )
 
-    # 3) 실수유형 입력
+    # 실수유형 입력
     if state["phase"] == "post" and "pnl" in state:
         choices = [c.strip() for c in text.split(",")]
         if not all(c in ("1", "2", "3", "4", "5", "6") for c in choices):
@@ -145,7 +146,6 @@ application = (
     .build()
 )
 
-# 핸들러 등록
 application.add_handler(CommandHandler("start", start))
 application.add_handler(
     MessageHandler(filters.TEXT & (~filters.COMMAND), handle_response)
