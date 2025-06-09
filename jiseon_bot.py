@@ -75,7 +75,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "answers": [],
         "stock": stock,
     }
-    await update.message.reply_text(f"🧠 [{stock}] 체크리스트 시작\n{questions[0]}")
+
+    count_str = f"(오늘 {user_data['count']}번째 매매)"
+    await update.message.reply_text(f"🧠 [{stock}] 체크리스트 시작 {count_str}\n{questions[0]}")
 
 # ── 응답 처리 핸들러 ──
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
