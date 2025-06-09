@@ -66,9 +66,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_data["count"] >= 3:
         return await update.message.reply_text("⚠️ 오늘은 매매 3회를 모두 사용했습니다.\n내일 다시 체크리스트를 이용해 주세요.")
 
-    user_data["count"] += 1
-    daily_entry_counts[uid] = user_data
-
+    
     user_states[uid] = {
         "phase": "checklist",
         "step": 0,
@@ -140,6 +138,11 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         sheet.append_row(row)
         await update.message.reply_text(f"✅ 기록 완료!\n손익: {state['pnl']}, 실수: {mistakes}")
+                # 체크리스트 완료로 간주하고 매매 횟수 카운트
+        user_data = daily_entry_counts.get(uid, {"last_date": date.today().isoformat(), "count": 0})
+        user_data["count"] += 1
+        daily_entry_counts[uid] = user_data
+
         del user_states[uid]
 
 # ── 애플리케이션 빌드 ──
