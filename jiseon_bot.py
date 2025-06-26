@@ -105,30 +105,30 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if state["step"] < len(questions):
             return await update.message.reply_text(questions[state["step"]])
-        elif state["step"] == len(questions):
-        yes = sum(1 for a in state["answers"] if a == "Y")
-        risky_indexes = [10, 12, 13, 14, 15]  # Q11~Q16 0-based 인덱스
-        risky_failed = any(state["answers"][i] == "N" for i in risky_indexes)
+        elif state["step"] == len(questions) and state["phase"] != "post":
+            yes = sum(1 for a in state["answers"] if a == "Y")
+            risky_indexes = [10, 12, 13, 14, 15]  # Q11~Q16 0-based 인덱스
+            risky_failed = any(state["answers"][i] == "N" for i in risky_indexes)
 
-        if risky_failed:
-            res = "\u274c 진입 금지 (고위험 조건 위반)"
-        elif yes >= 12:
-            res = "\u2705 진입 가능"
-        else:
-            res = "\u274c 진입 보류"
+            if risky_failed:
+                res = "\u274c 진입 금지 (고위험 조건 위반)"
+            elif yes >= 12:
+                res = "\u2705 진입 가능"
+            else:
+                res = "\u274c 진입 보류"
 
-        now = datetime.now(ZoneInfo("Asia/Seoul"))
-        state.update({
-            "phase": "post",
-            "yes_count": yes,
-            "result": res,
-            "date": now.strftime("%Y-%m-%d"),
-            "time": now.strftime("%H:%M"),
-        })
-        return await update.message.reply_text(
-            f"{res} ({yes}/{len(questions)})\n"
-            "이번 매매의 손익(퍼센트) 을 입력해주세요. 예: +5.3% 또는 -2%"
-        )
+            now = datetime.now(ZoneInfo("Asia/Seoul"))
+            state.update({
+                "phase": "post",
+                "yes_count": yes,
+                "result": res,
+                "date": now.strftime("%Y-%m-%d"),
+                "time": now.strftime("%H:%M"),
+            })
+            return await update.message.reply_text(
+                f"{res} ({yes}/{len(questions)})\n"
+                "이번 매매의 손익률을 % 단위로 입력해주세요! 예: +5.3% 또는 -2%"
+            )
 
     if state["phase"] == "post" and "pnl" not in state:
         if not text.endswith("%"):
