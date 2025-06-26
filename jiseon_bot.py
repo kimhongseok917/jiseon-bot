@@ -105,7 +105,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if state["step"] < len(questions):
             return await update.message.reply_text(questions[state["step"]])
-
+        elif state["step"] == len(questions):
         yes = sum(1 for a in state["answers"] if a == "Y")
         risky_indexes = [10, 12, 13, 14, 15]  # Q11~Q16 0-based 인덱스
         risky_failed = any(state["answers"][i] == "N" for i in risky_indexes)
