@@ -131,19 +131,21 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     if state["phase"] == "post" and "pnl" not in state:
-        if not text.endswith("%"):
-            return await update.message.reply_text("퍼센트로 입력해주세요. 예: +5.3% 또는 -2%")
-        try:
-            pct = float(text[:-1])
-        except ValueError:
-            return await update.message.reply_text("올바른 숫자를 입력해주세요.")
-        state["pnl"] = f"{pct:.2f}%"
-        return await update.message.reply_text(
-            "이번 매매에서의 실수 유형을 선택해주세요:\n"
-            "1. 수익매도 안함\n2. 충족 안됐는데 진입\n"
-            "3. 손절선 미설정\n4. 물타기\n5. 홀딩시간 늘어남\n6. 없음\n"
-            "예: 1,3 또는 6"
-        )
+    cleaned = text.replace('%', '')
+
+    try:
+        pct = float(cleaned)
+    except ValueError:
+        return await update.message.reply_text("올바른 숫자를 입력해주세요. 예: +5.3 또는 -2")
+
+    state["pnl"] = f"{pct:.2f}%"
+    return await update.message.reply_text(
+        "이번 매매에서의 실수 유형을 선택해주세요:\n"
+        "1. 수익매도 안함\n2. 충족 안됐는데 진입\n"
+        "3. 손절선 미설정\n4. 물타기\n5. 홀딩시간 늘어남\n6. 없음\n"
+        "예: 1,3 또는 6"
+    )
+
 
     if state["phase"] == "post" and "pnl" in state:
         choices = [c.strip() for c in text.split(",")]
