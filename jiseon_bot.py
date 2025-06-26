@@ -1,8 +1,7 @@
 import os
 import json
-from datetime import datetime, date
+from datetime import datetime
 from zoneinfo import ZoneInfo
-from collections import defaultdict
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -28,8 +27,9 @@ scope  = [
 creds  = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc     = gspread.authorize(creds)
 sheet  = gc.open_by_key(SHEET_ID).sheet1
+stats_sheet = gc.open_by_key(SHEET_ID).worksheet("Mistake Stats")
 
-# ── 체크리스트 질문 ──
+# ── 체크리스트 질문 (감정 1~5번, 기술적 6~16번) ──
 questions = [
     "1. 지금 충동적으로 진입하려는 것이 아니라고 확신할 수 있나요? (Y/N)",
     "2. '놓치면 안 된다'는 불안감 없이 매매하고 있나요? (Y/N)",
@@ -48,42 +48,53 @@ questions = [
     "15. 단기 전고점 대비 -4.5% 이상 하락하지 않았나요? (Y/N)",
     "16. 좋은 뉴스가 발생했나요? (Y/N)"
 ]
-
 user_states = {}
-daily_entry_counts = {}  # user_id -> {"last_date": "YYYY-MM-DD", "count": 0}
+
+# ── 실수유형 통계 업데이트 함수 ──
+def update_mistake_stats():
+    all_rows = sheet.get_all_values()
+    header = all_rows[0]
+    if "실수유형" not in header:
+        return
+
+    mistake_col_index = header.index("실수유형")
+    counts = {}
+
+    for row in all_rows[1:]:
+        if len(row) <= mistake_col_index:
+            continue
+        types = row[mistake_col_index].split(",")
+        for t in types:
+            t = t.strip()
+            if t:
+                counts[t] = counts.get(t, 0) + 1
+
+    result = [["실수유형", "횟수"]]
+    for key in sorted(counts, key=lambda x: int(x)):
+        result.append([key, counts[key]])
+
+    stats_sheet.clear()
+    stats_sheet.update("A1", result)
 
 # ── /start 핸들러 ──
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
+    uid   = update.effective_user.id
     stock = "미입력" if not context.args else " ".join(context.args)
-    today = date.today().isoformat()
-
-    user_data = daily_entry_counts.get(uid, {"last_date": "", "count": 0})
-
-    if user_data["last_date"] != today:
-        user_data = {"last_date": today, "count": 0}  # 날짜가 바뀌면 초기화
-
-    if user_data["count"] >= 3:
-        return await update.message.reply_text("⚠️ 오늘은 매매 3회를 모두 사용했습니다.\n내일 다시 체크리스트를 이용해 주세요.")
-
-    
     user_states[uid] = {
         "phase": "checklist",
         "step": 0,
         "answers": [],
         "stock": stock,
     }
-
-    count_str = f"(오늘 {user_data['count']}번째 매매)"
-    await update.message.reply_text(f"🧠 [{stock}] 체크리스트 시작 {count_str}\n{questions[0]}")
+    await update.message.reply_text(f"\U0001F9E0 [{stock}] 체크리스트 시작\n{questions[0]}")
 
 # ── 응답 처리 핸들러 ──
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    text = update.message.text.strip()
+    uid   = update.effective_user.id
+    text  = update.message.text.strip()
     state = user_states.get(uid)
     if not state:
-        return await update.message.reply_text("👉 먼저 /start [종목명] 으로 시작해주세요.")
+        return await update.message.reply_text("\ud83d\udc49 먼저 /start [종목명] 으로 시작해주세요.")
 
     if state["phase"] == "checklist":
         t = text.upper()
@@ -96,7 +107,16 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return await update.message.reply_text(questions[state["step"]])
 
         yes = sum(1 for a in state["answers"] if a == "Y")
-        res = "✅ 진입 가능" if yes >= 12 else "❌ 진입 보류"
+        risky_indexes = [10, 12, 13, 14, 15]  # Q11~Q16 0-based 인덱스
+        risky_failed = any(state["answers"][i] == "N" for i in risky_indexes)
+
+        if risky_failed:
+            res = "\u274c 진입 금지 (고위험 조건 위반)"
+        elif yes >= 12:
+            res = "\u2705 진입 가능"
+        else:
+            res = "\u274c 진입 보류"
+
         now = datetime.now(ZoneInfo("Asia/Seoul"))
         state.update({
             "phase": "post",
@@ -106,7 +126,8 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "time": now.strftime("%H:%M"),
         })
         return await update.message.reply_text(
-            f"{res} ({yes}/{len(questions)})\n이번 매매의 👉 손익(퍼센트) 을 입력해주세요. 예: +5.3% 또는 -2%"
+            f"{res} ({yes}/{len(questions)})\n"
+            "이번 매매의 \ud83d\udc49 손익(퍼센트) 을 입력해주세요. 예: +5.3% 또는 -2%"
         )
 
     if state["phase"] == "post" and "pnl" not in state:
@@ -137,12 +158,8 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             state["pnl"], mistakes,
         ]
         sheet.append_row(row)
-        await update.message.reply_text(f"✅ 기록 완료!\n손익: {state['pnl']}, 실수: {mistakes}")
-                # 체크리스트 완료로 간주하고 매매 횟수 카운트
-        user_data = daily_entry_counts.get(uid, {"last_date": date.today().isoformat(), "count": 0})
-        user_data["count"] += 1
-        daily_entry_counts[uid] = user_data
-
+        update_mistake_stats()
+        await update.message.reply_text(f"\u2705 기록 완료!\n손익: {state['pnl']}, 실수: {mistakes}")
         del user_states[uid]
 
 # ── 애플리케이션 빌드 ──
@@ -157,6 +174,7 @@ application.add_handler(
     MessageHandler(filters.TEXT & (~filters.COMMAND), handle_response)
 )
 
+# ── 웹훅 실행 ──
 if __name__ == "__main__":
     application.run_webhook(
         listen="0.0.0.0",
