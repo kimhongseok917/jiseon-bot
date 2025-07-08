@@ -9,6 +9,7 @@ from telegram.ext import (
     MessageHandler,
     ContextTypes,
     filters,
+    WebhookServer,
 )
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -29,7 +30,7 @@ gc = gspread.authorize(creds)
 sheet = gc.open_by_key(SHEET_ID).sheet1
 stats_sheet = gc.open_by_key(SHEET_ID).worksheet("Mistake Stats")
 
-# ── 체크리스트 질문 ──
+# ── 체크리스트 ──
 questions = [
     "1. 지금 충동적으로 진입하려는 것이 아니라고 확신할 수 있나요? (Y/N)",
     "2. '놓치면 안 된다'는 불안감 없이 매매하고 있나요? (Y/N)",
@@ -50,7 +51,7 @@ questions = [
 ]
 user_states = {}
 
-# ── 실수유형 통계 업데이트 ──
+# ── 실수유형 통계 ──
 def update_mistake_stats():
     all_rows = sheet.get_all_values()
     header = all_rows[0]
@@ -68,7 +69,7 @@ def update_mistake_stats():
     stats_sheet.clear()
     stats_sheet.update("A1", [["실수유형", "횟수"]] + [[k, counts[k]] for k in sorted(counts, key=int)])
 
-# ── /start 핸들러 ──
+# ── /start ──
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     stock = "미입력" if not context.args else " ".join(context.args)
@@ -80,7 +81,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     await update.message.reply_text(f"🧠 [{stock}] 체크리스트 시작\n{questions[0]}")
 
-# ── 메시지 핸들러 ──
+# ── 응답 핸들러 ──
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     text = update.message.text.strip()
@@ -149,7 +150,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ 기록 완료!\n손익: {state['pnl']}, 실수: {mistakes}")
         del user_states[uid]
 
-# ── 애플리케이션 실행 ──
+# ── 웹훅 실행 ──
 if __name__ == "__main__":
     application = (
         ApplicationBuilder()
@@ -164,4 +165,7 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", 10000)),
         url_path=BOT_TOKEN,
         webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}",
+        webhook_server=WebhookServer(
+            routes={"/": lambda req: (200, {}, b"✅ Bot is alive")}
+        )
     )
