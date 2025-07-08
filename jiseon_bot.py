@@ -1,9 +1,7 @@
 import os
 import json
-import threading
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from flask import Flask, Response
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -52,16 +50,14 @@ questions = [
 ]
 user_states = {}
 
-# ── 실수유형 통계 업데이트 함수 ──
+# ── 실수유형 통계 업데이트 ──
 def update_mistake_stats():
     all_rows = sheet.get_all_values()
     header = all_rows[0]
     if "실수유형" not in header:
         return
-
     idx = header.index("실수유형")
     counts = {}
-
     for row in all_rows[1:]:
         if len(row) <= idx:
             continue
@@ -69,7 +65,6 @@ def update_mistake_stats():
             t = t.strip()
             if t:
                 counts[t] = counts.get(t, 0) + 1
-
     stats_sheet.clear()
     stats_sheet.update("A1", [["실수유형", "횟수"]] + [[k, counts[k]] for k in sorted(counts, key=int)])
 
@@ -85,7 +80,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     await update.message.reply_text(f"🧠 [{stock}] 체크리스트 시작\n{questions[0]}")
 
-# ── 응답 처리 핸들러 ──
+# ── 메시지 핸들러 ──
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     text = update.message.text.strip()
@@ -104,7 +99,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return await update.message.reply_text(questions[state["step"]])
 
         yes = sum(1 for a in state["answers"] if a == "Y")
-        risky_indexes = [10, 12, 13, 14, 15]  # Q11~Q16 중 위험조건
+        risky_indexes = [10, 12, 13, 14, 15]
         risky_failed = any(state["answers"][i] == "N" for i in risky_indexes)
 
         res = "❌ 진입 금지 (고위험 조건 위반)" if risky_failed else (
@@ -154,33 +149,19 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ 기록 완료!\n손익: {state['pnl']}, 실수: {mistakes}")
         del user_states[uid]
 
-# ── Flask 앱 생성 및 /health 라우트 ──
-from flask import Flask, Response
-flask_app = Flask(__name__)
-
-@flask_app.route("/health")
-def health():
-    return Response("OK", status=200)
-
-def run_flask():
-    port = int(os.environ.get("PORT", "10000"))
-    flask_app.run(host="0.0.0.0", port=port)
-
-# ── 텔레그램 봇 실행 ──
-application = (
-    ApplicationBuilder()
-    .token(BOT_TOKEN)
-    .build()
-)
-application.add_handler(CommandHandler("start", start))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_response))
-
+# ── 애플리케이션 실행 ──
 if __name__ == "__main__":
-    threading.Thread(target=run_flask).start()
+    application = (
+        ApplicationBuilder()
+        .token(BOT_TOKEN)
+        .build()
+    )
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_response))
 
     application.run_webhook(
         listen="0.0.0.0",
-        port=int(os.environ.get("PORT", "10000")),
+        port=int(os.environ.get("PORT", 10000)),
         url_path=BOT_TOKEN,
         webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}",
     )
