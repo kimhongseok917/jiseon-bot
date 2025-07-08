@@ -166,6 +166,6 @@ if __name__ == "__main__":
         url_path=BOT_TOKEN,
         webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}",
         webhook_server=WebhookServer(
-            routes={"/": lambda req: (200, {}, b"✅ Bot is alive")}
+            routes={"/": lambda req: (200, {}, "✅ Bot is alive".encode("utf-8"))}
         )
     )
