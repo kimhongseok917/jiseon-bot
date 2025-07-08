@@ -9,16 +9,18 @@ from telegram.ext import (
     MessageHandler,
     ContextTypes,
     filters,
-    WebhookServer,
 )
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import nest_asyncio
+
+nest_asyncio.apply()
 
 # ── 환경변수 로드 ──
-BOT_TOKEN   = os.environ["BOT_TOKEN"]
-SHEET_ID    = os.environ["SHEET_ID"]
+BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_URL = os.environ["WEBHOOK_URL"]
-creds_dict  = json.loads(os.environ["GOOGLE_JSON"])
+SHEET_ID = os.environ["SHEET_ID"]
+creds_dict = json.loads(os.environ["GOOGLE_JSON"])
 
 # ── Google Sheets 연결 ──
 scope = [
@@ -30,7 +32,7 @@ gc = gspread.authorize(creds)
 sheet = gc.open_by_key(SHEET_ID).sheet1
 stats_sheet = gc.open_by_key(SHEET_ID).worksheet("Mistake Stats")
 
-# ── 체크리스트 ──
+# ── 체크리스트 질문 ──
 questions = [
     "1. 지금 충동적으로 진입하려는 것이 아니라고 확신할 수 있나요? (Y/N)",
     "2. '놓치면 안 된다'는 불안감 없이 매매하고 있나요? (Y/N)",
@@ -51,7 +53,6 @@ questions = [
 ]
 user_states = {}
 
-# ── 실수유형 통계 ──
 def update_mistake_stats():
     all_rows = sheet.get_all_values()
     header = all_rows[0]
@@ -69,7 +70,6 @@ def update_mistake_stats():
     stats_sheet.clear()
     stats_sheet.update("A1", [["실수유형", "횟수"]] + [[k, counts[k]] for k in sorted(counts, key=int)])
 
-# ── /start ──
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     stock = "미입력" if not context.args else " ".join(context.args)
@@ -81,7 +81,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     await update.message.reply_text(f"🧠 [{stock}] 체크리스트 시작\n{questions[0]}")
 
-# ── 응답 핸들러 ──
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     text = update.message.text.strip()
@@ -116,8 +115,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "time": now.strftime("%H:%M"),
         })
         return await update.message.reply_text(
-            f"{res} ({yes}/{len(questions)})\n"
-            "이번 매매의 손익률을 입력해주세요! 예: +5.3 또는 -2"
+            f"{res} ({yes}/{len(questions)})\n이번 매매의 손익률을 입력해주세요! 예: +5.3 또는 -2"
         )
 
     if state["phase"] == "post" and "pnl" not in state:
@@ -129,9 +127,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         state["pnl"] = f"{pct:.2f}%"
         return await update.message.reply_text(
             "이번 매매에서의 실수 유형을 선택해주세요:\n"
-            "1. 수익매도 안함\n2. 충족 안됐는데 진입\n"
-            "3. 손절선 미설정\n4. 물타기\n5. 홀딩시간 늘어남\n6. 없음\n"
-            "예: 1,3 또는 6"
+            "1. 수익매도 안함\n2. 충족 안됐는데 진입\n3. 손절선 미설정\n4. 물타기\n5. 홀딩시간 늘어남\n6. 없음\n예: 1,3 또는 6"
         )
 
     if state["phase"] == "post" and "pnl" in state:
@@ -150,13 +146,8 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ 기록 완료!\n손익: {state['pnl']}, 실수: {mistakes}")
         del user_states[uid]
 
-# ── 웹훅 실행 ──
 if __name__ == "__main__":
-    application = (
-        ApplicationBuilder()
-        .token(BOT_TOKEN)
-        .build()
-    )
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_response))
 
@@ -165,7 +156,4 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", 10000)),
         url_path=BOT_TOKEN,
         webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}",
-        webhook_server=WebhookServer(
-            routes={"/": lambda req: (200, {}, "✅ Bot is alive".encode("utf-8"))}
-        )
     )
