@@ -1,7 +1,9 @@
 import os
 import json
+import threading
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from flask import Flask, Response
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -152,7 +154,19 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ 기록 완료!\n손익: {state['pnl']}, 실수: {mistakes}")
         del user_states[uid]
 
-# ── 봇 실행 ──
+# ── Flask 앱 생성 및 /health 라우트 ──
+from flask import Flask, Response
+flask_app = Flask(__name__)
+
+@flask_app.route("/health")
+def health():
+    return Response("OK", status=200)
+
+def run_flask():
+    port = int(os.environ.get("PORT", "10000"))
+    flask_app.run(host="0.0.0.0", port=port)
+
+# ── 텔레그램 봇 실행 ──
 application = (
     ApplicationBuilder()
     .token(BOT_TOKEN)
@@ -162,6 +176,8 @@ application.add_handler(CommandHandler("start", start))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_response))
 
 if __name__ == "__main__":
+    threading.Thread(target=run_flask).start()
+
     application.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", "10000")),
