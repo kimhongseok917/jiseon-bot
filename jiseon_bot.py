@@ -158,9 +158,7 @@ def webhook():
     telegram_app.update_queue.put_nowait(update)
     return "ok"
 
-@flask_app.before_first_request
-def setup_webhook():
-    telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}")
-
 if __name__ == "__main__":
+    telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}")
     flask_app.run(host="0.0.0.0", port=10000)
+
