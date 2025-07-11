@@ -7,10 +7,10 @@ services:
     startCommand: python bot.py
     envVars:
       - key: BOT_TOKEN
-        value: <your-telegram-bot-token>
+        value: <'7882472825:AAHoJveOycg7GYVNWI7umKR9ZOz5xv4xnA4'>
       - key: GOOGLE_JSON
-        value: <서비스 계정 JSON 문자열>
+        value: <{"type":"service_account","project_id":"pjbrich","private_key_id":"893b658b2a25ade82b8afc60736689df885b0f02","private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCfaGq2rMQuRpi+\nQ6pi9vXpsxiIDWwl8Kbyf7kkzAR99FIT7qfRGVdRR1yFcny6wvQ2tbbzstqRTIEQ\nTqcpvJoiW1S5imZLYz2BpkuqV4ODIyoVJ+4hM4KUu/VpyKO0PtJiQFQM/ycHYC8k\nqyDkDyAf346EloQiGYD4sECJ3IISCKnJLEOiKaVotWdsuCxWr3qH3+Iq6J65TJLL\nobVLMSdojgxJpWNTdmNBEnUmBKtsIHtFT4yN8G9BrqFurdxsvHSsd4oZaa7tPLO3\n3wgUn14oAkbCgoYbUtOL+aYYTMmFBWU3EnNPunCJDZs6y+zR9/BNXWZs/ZbM5r73\n3beKk2stAgMBAAECggEAFHfU0/XlDsgTzsJje2eYddSAPt/yVgDLfvG1dSsZHI8l\nhterBqdJVe9iyuPDbjugHfJBNpNtiyCWpeBjiHFmHSk6/MPvlJh+ikovBwVLpqf6\nPFMvOWYiyzRDM70GgBtc6i62XCDbAxBvnTa393CVwGH1K8Mj3jkGHWiMMOd2cBgm\npBwhZ/0MiGhXuyhqLmpGxbq6sMtPZDb+m9AvhwXLjnYZTJ/VD9413UdOR1DGcQ/2\n9x0xJACEnXhvDRH37sF/vFnu9izBzDbUbj9D7yB4wGfo4xGaxdh2+lCqWxW3cx4g\nZ6BCgi/MQ0/BSZoMsedicRQyDSS7CqzxEau+DUHB5QKBgQDaVyfRhgPxpItvnfQj\nJnf9UIEuJXK2L9AbnwlMw3CZty20wXVEAhjl3kwlQdm79dOyLzitMOmWoSxw/jQt\nW5LG8UXuaY9c2nORGBrCelKGFeUjF9Ly+/wUn/LTIJBtiqLZ/rNi30f997YTqMJv\nkiGaVqzUDC4zVJkMvKcx8nSgbwKBgQC65xZwldIl3WMv84LNFHVFLdUnNofxX7SJ\n1CKDYu6QbEx71WzS0OKniSGm6MpK4n+HQD/QBl1/027qk07J9+ZHfOZdiCFjDLZv\nxYeLWR/K/jptOjtOoQzq09JbPB82zr4RPG165vYZhQVAKNP32dSPkYxOEh2JZMXu\nYxoOMDxEIwKBgBSm/84yxfa6YLILF8enYNwmHEH4KtSOyzmBnoiTR/hSOlGJpwTq\nyd4cW8l+ZBECXKbTDqJbKQ0la6W4dckAi26j7cByXawjwaCszgMtPNcQBR9/pmVz\nblGpG3fa8a5a2bKTA/bLNe0Q3DkZ0mJpSSJnJmvcRxZ13xA0XAA+dcejAoGANdCP\n337j8U8bXhUpVk9LrM2TkCTdY5yA6SaRgW8c7ayhIQ7EtLa8bCzJ6bshdApfWdwg\nA4+xoDqKtzQO/YxJW9AUrF2j71cbuHcRngfdZZ9px0V7ChrJE1xGN0rKWgeRJnlV\ntIuH1LU+W8jlr3mjAGuSEHCa3JKNgyQ5vlgZIi0CgYEAgobID7NmoUzRiMfpUTLp\nzTx1l7TF+rn9o+u2wOkkHgCt9/9yRNu0JhcHIX057Gd73NnBw1YTj0ZUMomfEE2/\npzKqKc5iVrF6juGQPd/IH5LxlqyebLRVMb5LGycGN2z3PhJgc/KcvdEz/1L7W79f\nIiAxxCX4CVdt1Q5w6UP/JlE=\n-----END PRIVATE KEY-----\n","client_email":"jiseon-bot-account@pjbrich.iam.gserviceaccount.com","client_id":"100025392801273979001","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/jiseon-bot-account%40pjbrich.iam.gserviceaccount.com","universe_domain":"googleapis.com"}>
       - key: SHEET_ID
-        value: <시트 ID>
+        value: <'1jbYjQlCwKAj2nzPuDp1BUm9uDK_5q16t5bA7ovoyrew'>
       - key: WEBHOOK_URL
-        value: https://your-app-name.onrender.com
+        value: https://jiseon-bot.onrender.com
