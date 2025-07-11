@@ -1,5 +1,7 @@
 import os
 import json
+import threading
+import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -158,7 +160,12 @@ def webhook():
     telegram_app.update_queue.put_nowait(update)
     return "ok"
 
-if __name__ == "__main__":
-    await telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}")
+def run_flask():
     flask_app.run(host="0.0.0.0", port=10000)
 
+if __name__ == "__main__":
+    async def main():
+        await telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}")
+        threading.Thread(target=run_flask).start()
+
+    asyncio.run(main())
