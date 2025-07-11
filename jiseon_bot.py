@@ -159,6 +159,6 @@ def webhook():
     return "ok"
 
 if __name__ == "__main__":
-    telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}")
+    await telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}")
     flask_app.run(host="0.0.0.0", port=10000)
 
