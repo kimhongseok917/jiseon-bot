@@ -30,7 +30,11 @@ scope = [
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc = gspread.authorize(creds)
 sheet = gc.open_by_key(SHEET_ID).sheet1
-stats_sheet = gc.open_by_key(SHEET_ID).worksheet("Mistake Stats")
+
+try:
+    stats_sheet = gc.open_by_key(SHEET_ID).worksheet("Mistake Stats")
+except gspread.exceptions.WorksheetNotFound:
+    stats_sheet = gc.open_by_key(SHEET_ID).add_worksheet(title="Mistake Stats", rows="100", cols="2")
 
 # ── 체크리스트 질문 ──
 questions = [
@@ -68,8 +72,9 @@ def update_mistake_stats():
             t = t.strip()
             if t:
                 counts[t] = counts.get(t, 0) + 1
+    sorted_keys = sorted(counts.keys(), key=lambda x: int(x) if x.isdigit() else x)
     stats_sheet.clear()
-    stats_sheet.update("A1", [["실수유형", "횟수"]] + [[k, counts[k]] for k in sorted(counts, key=int)])
+    stats_sheet.update("A1", [["실수유형", "횟수"]] + [[k, counts[k]] for k in sorted_keys])
 
 # ── /start 명령 처리 ──
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -165,7 +170,13 @@ def webhook():
     telegram_app.update_queue.put_nowait(update)
     return "ok"
 
+# ── 엔트리 포인트 ──
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}"))
-    flask_app.run(host="0.0.0.0", port=10000)
+
+    async def main():
+        await telegram_app.initialize()
+        await telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}")
+        flask_app.run(host="0.0.0.0", port=10000)
+
+    asyncio.run(main())
