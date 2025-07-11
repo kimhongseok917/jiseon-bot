@@ -1,7 +1,5 @@
 import os
 import json
-import threading
-import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -34,7 +32,7 @@ gc = gspread.authorize(creds)
 sheet = gc.open_by_key(SHEET_ID).sheet1
 stats_sheet = gc.open_by_key(SHEET_ID).worksheet("Mistake Stats")
 
-# ── 체크리스트 ──
+# ── 체크리스트 질문 ──
 questions = [
     "1. 지금 충동적으로 진입하려는 것이 아니라고 확신할 수 있나요? (Y/N)",
     "2. '놓치면 안 된다'는 불안감 없이 매매하고 있나요? (Y/N)",
@@ -55,6 +53,7 @@ questions = [
 ]
 user_states = {}
 
+# ── 실수유형 통계 업데이트 ──
 def update_mistake_stats():
     all_rows = sheet.get_all_values()
     header = all_rows[0]
@@ -72,6 +71,7 @@ def update_mistake_stats():
     stats_sheet.clear()
     stats_sheet.update("A1", [["실수유형", "횟수"]] + [[k, counts[k]] for k in sorted(counts, key=int)])
 
+# ── /start 명령 처리 ──
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     stock = "미입력" if not context.args else " ".join(context.args)
@@ -83,6 +83,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     await update.message.reply_text(f"🧠 [{stock}] 체크리스트 시작\n{questions[0]}")
 
+# ── 메시지 응답 처리 ──
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     text = update.message.text.strip()
@@ -154,18 +155,17 @@ telegram_app = ApplicationBuilder().token(BOT_TOKEN).build()
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_response))
 
+@flask_app.route("/", methods=["GET"])
+def home():
+    return "📡 Jiseon Bot is running."
+
 @flask_app.route(f"/webhook/{BOT_TOKEN}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
     telegram_app.update_queue.put_nowait(update)
     return "ok"
 
-def run_flask():
-    flask_app.run(host="0.0.0.0", port=10000)
-
 if __name__ == "__main__":
-    async def main():
-        await telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}")
-        threading.Thread(target=run_flask).start()
-
-    asyncio.run(main())
+    import asyncio
+    asyncio.run(telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}"))
+    flask_app.run(host="0.0.0.0", port=10000)
