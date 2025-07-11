@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: telegram-webhook-checklist
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: BOT_TOKEN
+        value: <your-telegram-bot-token>
+      - key: GOOGLE_JSON
+        value: <서비스 계정 JSON 문자열>
+      - key: SHEET_ID
+        value: <시트 ID>
+      - key: WEBHOOK_URL
+        value: https://your-app-name.onrender.com
