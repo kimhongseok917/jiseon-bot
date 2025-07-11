@@ -2,17 +2,17 @@ import os
 import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    ContextTypes, filters
 )
+
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import nest_asyncio
+from flask import Flask, request
 
 nest_asyncio.apply()
 
@@ -32,14 +32,14 @@ gc = gspread.authorize(creds)
 sheet = gc.open_by_key(SHEET_ID).sheet1
 stats_sheet = gc.open_by_key(SHEET_ID).worksheet("Mistake Stats")
 
-# ── 체크리스트 질문 ──
+# ── 체크리스트 ──
 questions = [
     "1. 지금 충동적으로 진입하려는 것이 아니라고 확신할 수 있나요? (Y/N)",
     "2. '놓치면 안 된다'는 불안감 없이 매매하고 있나요? (Y/N)",
     "3. 직전 거래의 손익에 흔들리지 않고 있는 상태인가요? (Y/N)",
     "4. 오늘 감정 상태(피로, 과음, 스트레스 등)가 매매에 방해되지 않나요? (Y/N)",
     "5. 수익 모델에 따라 매매하고 있다는 자신이 있나요? (Y/N)",
-    "6. 장 시작 10분은 지났나요? (Y/N)",
+    "6. 장 시작 5분은 지났나요? (Y/N)",
     "7. 갭이 8% 이하에서 출발했나요? (Y/N)",
     "8. 테마군 상승 또는 분당 100억 이상의 거래대금 발생 종목인가요? (Y/N)",
     "9. 일봉상 신고가 또는 박스권 돌파인가요? (Y/N)",
@@ -146,9 +146,21 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ 기록 완료!\n손익: {state['pnl']}, 실수: {mistakes}")
         del user_states[uid]
 
-if __name__ == "__main__":
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_response))
+# ── Flask + Webhook ──
+flask_app = Flask(__name__)
+telegram_app = ApplicationBuilder().token(BOT_TOKEN).build()
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_response))
 
-    application.run_polling()
+@flask_app.route(f"/webhook/{BOT_TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    telegram_app.update_queue.put_nowait(update)
+    return "ok"
+
+@flask_app.before_first_request
+def setup_webhook():
+    telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}")
+
+if __name__ == "__main__":
+    flask_app.run(host="0.0.0.0", port=10000)
