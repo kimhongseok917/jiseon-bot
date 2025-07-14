@@ -14,6 +14,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 import nest_asyncio
 from flask import Flask, request
 
+import asyncio
+
 nest_asyncio.apply()
 
 # ── 환경변수 로드 ──
@@ -167,16 +169,16 @@ def home():
 @flask_app.route(f"/webhook/{BOT_TOKEN}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    telegram_app.update_queue.put_nowait(update)
+    asyncio.create_task(telegram_app.process_update(update))
     return "ok"
 
 # ── 엔트리 포인트 ──
 if __name__ == "__main__":
-    import asyncio
-
     async def main():
         await telegram_app.initialize()
         await telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{BOT_TOKEN}")
-        flask_app.run(host="0.0.0.0", port=10000)
+        await telegram_app.start()  # ✅ 반드시 호출해야 handler 작동
+        port = int(os.environ.get("PORT", 10000))
+        flask_app.run(host="0.0.0.0", port=port)
 
     asyncio.run(main())
